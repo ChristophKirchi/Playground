@@ -76,8 +76,8 @@ crashlytics-build.properties
 
 # Asset Packs
 /[Aa]ssets/Import*
-/[Aa]ssets/Presets
+/[Aa]ssets/Presets*
 /[Aa]ssets/*.asset*
-/[Aa]ssets/TutorialInfo
-/[Aa]ssets/Settings
+/[Aa]ssets/TutorialInfo*
+/[Aa]ssets/Settings*
 /[Aa]ssets/HDRP*
