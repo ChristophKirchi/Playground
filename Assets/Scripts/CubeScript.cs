@@ -7,33 +7,44 @@ public class CubeScript : MonoBehaviour
 {
     public Material meshMaterial;
     
-    [SerializeField, HideInInspector]
-    private MeshScript[] _meshScripts;
+    [Range(2, 25)]
+    public int vertexHeight = 10;
+    
+    [Range(2, 25)]
+    public int vertexWidth = 10;
+
     private void OnValidate()
     {
-        if (_meshScripts == null)
+        foreach (Transform obj in transform)
         {
-            _meshScripts = new MeshScript[6];
+            StartCoroutine(Destroy(obj.gameObject));
         }
-
-        for (int i = 0; i < 6; i++)
+        
+        GameObject newObj = new GameObject("Cube");
+        var mesh = MeshScript.GetNewMesh(Vector3.up, vertexWidth, vertexHeight, Color.black);
+        HalfEdgeMesh heMesh = null;
+        Vector3[] directions = {Vector3.down, Vector3.back, Vector3.forward, Vector3.right, Vector3.left};
+        foreach (var dir in directions)
         {
-            if (_meshScripts[i] == null)
-            {
-                GameObject obj = new GameObject("Face: " + (MeshScript.Direction) i);
-                obj.transform.parent = transform;
-                obj.AddComponent<MeshRenderer>().sharedMaterial = meshMaterial;
-                var mesh = new Mesh();
-                obj.AddComponent<MeshFilter>().sharedMesh = mesh;
-                _meshScripts[i] = obj.AddComponent<MeshScript>();
-                _meshScripts[i].mesh = mesh;
-                _meshScripts[i].localUp = MeshScript.getDir((MeshScript.Direction) i);
-                _meshScripts[i].initMesh();
-            }
-            else
-            {
-                _meshScripts[i].GetComponent<MeshRenderer>().sharedMaterial = meshMaterial;
-            }
+            var meshIter = MeshScript.GetNewMesh(dir, vertexWidth, vertexHeight, Color.black);
+            heMesh = HalfEdgeMesh.CombineMeshes(ref mesh, meshIter);
         }
+        
+        var meshScript = newObj.AddComponent<MeshScript>();
+        newObj.transform.parent = transform;
+        newObj.AddComponent<MeshRenderer>().sharedMaterial = meshMaterial;
+        newObj.AddComponent<MeshFilter>().sharedMesh = mesh;
+        meshScript.mesh = mesh;
+        meshScript.localUp = Vector3.up;
+        meshScript.vertexHeight = vertexHeight;
+        meshScript.vertexWidth = vertexWidth;
+        meshScript.initMesh();
+        meshScript.heMesh = heMesh;
+    }
+    
+    IEnumerator Destroy(GameObject go)
+    {
+        yield return new WaitForEndOfFrame();
+        DestroyImmediate(go);
     }
 }

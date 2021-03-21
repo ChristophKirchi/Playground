@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class HalfEdgeMesh
@@ -8,51 +9,57 @@ public class HalfEdgeMesh
     public List<Vertex> vertices = new List<Vertex>();
     public List<HalfEdge> halfEdges = new List<HalfEdge>();
 
-    public static HalfEdgeMesh loadMesh(Mesh mesh)
+    public static HalfEdgeMesh LoadMesh(Mesh mesh)
     {
         var heMesh = new HalfEdgeMesh();
         var map = new Dictionary<Tuple<int, int>, HalfEdge>();
         
-        for (int i = 0; i < mesh.vertexCount; i++)
+        for (var i = 0; i < mesh.vertexCount; i++)
         {
             heMesh.vertices.Add(new Vertex(i, new VertexData(mesh.vertices[i], Color.black)));
         }
 
         if (mesh.colors.Length == mesh.vertexCount)
         {
-            for (int i = 0; i < mesh.vertexCount; i++)
+            for (var i = 0; i < mesh.vertexCount; i++)
             {
                 heMesh.vertices[i].data.color = mesh.colors[i];
             }
+        }        
+        if (mesh.uv.Length == mesh.vertexCount)
+        {
+            for (var i = 0; i < mesh.vertexCount; i++)
+            {
+                heMesh.vertices[i].data.uv = mesh.uv[i];
+            }
         }
 
-        for (int i = 0; i < mesh.triangles.Length; i += 3)
+        for (var i = 0; i < mesh.triangles.Length; i += 3)
         {
             heMesh.faces.Add(new Face(i / 3, new FaceData(mesh.triangles[i], 
                                                               mesh.triangles[i + 1], 
                                                               mesh.triangles[i + 2])));
         }
 
-        int index = 0;
+        var index = 0;
         foreach (var face in heMesh.faces)
         {
             HalfEdge last = null;
             HalfEdge first = null;
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
-                HalfEdge he, hePair;
+                HalfEdge he;
 
                 var key = new Tuple<int, int>(heMesh.vertices[face.data.vertices[i]].id, heMesh.vertices[face.data.vertices[(i + 1) % 3]].id);
                 if (map.ContainsKey(key))
                 {
                     he = map[key];
                     map.Remove(key);
-                    hePair = he.pair;
                 }
                 else
                 {
                     he = new HalfEdge(index++);
-                    hePair = new HalfEdge(index++);
+                    var hePair = new HalfEdge(index++);
                     heMesh.halfEdges.Add(he);
                     heMesh.halfEdges.Add(hePair);
 
@@ -92,10 +99,87 @@ public class HalfEdgeMesh
 
         return heMesh;
     }
+    public static HalfEdgeMesh CombineMeshes(ref Mesh meshA, Mesh meshB)
+    {
+        if (meshA == null || meshB == null)
+        { 
+            return null;
+        }
+        
+        var newVertices = new List<Vector3>();
+        var newFaces = new List<int>();
+        var newColors = new List<Color>();
+        var newUVs = new List<Vector2>();
+        var meshAHalfEdge = LoadMesh(meshA);
+        var meshBHalfEdge = LoadMesh(meshB);
 
+        newVertices.AddRange(meshA.vertices);
+        newFaces.AddRange(meshA.triangles);
+        newColors.AddRange(meshA.colors);
+        newUVs.AddRange(meshA.uv);
+
+        var vertexCount = newVertices.Count;
+        var replace = new Dictionary<int, int>();
+        
+        foreach (var v in meshBHalfEdge.vertices)
+        {
+            var vertex = meshAHalfEdge.GetVertexAtPosition(v.data.pos);
+            if (vertex != null)
+            {
+                replace.Add(v.id, vertex.id);
+                vertex.data.color = (vertex.data.color + v.data.color) / 2;
+            }
+            else
+            {
+                replace.Add(v.id, newVertices.Count);
+                newVertices.Add(v.data.pos);
+                newColors.Add(v.data.color);
+                newUVs.Add(v.data.uv);
+            }
+        }
+
+        foreach (var face in meshBHalfEdge.faces)
+        {
+            newFaces.AddRange(face.data.vertices.Select(v => replace.ContainsKey(v) ? replace[v] : (v + vertexCount)));
+        }
+
+        var mesh = new Mesh
+        {
+            vertices = newVertices.ToArray(), triangles = newFaces.ToArray(), 
+            colors = newColors.ToArray(), uv = newUVs.ToArray()
+        };
+        mesh.RecalculateNormals();
+        
+        meshA = mesh;
+        return LoadMesh(mesh);
+    }
+    
     public Mesh ToUnityMesh()
     {
-        return new Mesh();
+        var mesh = new Mesh();
+        var listVertices = new List<Vector3>();
+        var listColors = new List<Color>();
+        var listUVs = new List<Vector2>();
+        var listFaces = new List<int>();
+
+        foreach (var vertex in vertices)
+        {
+            listVertices.Add(vertex.data.pos);
+            listColors.Add(vertex.data.color);
+            listUVs.Add(vertex.data.uv);
+        }
+
+        mesh.vertices = listVertices.ToArray();
+        mesh.colors = listColors.ToArray();
+        mesh.uv = listUVs.ToArray();
+
+        foreach (var face in faces)
+        {
+            listFaces.AddRange(face.data.vertices);
+        }
+
+        mesh.triangles = listFaces.ToArray();
+        return mesh;
     }
 
     public Vertex GetVertexAtPosition(Vector3 pos)
@@ -237,10 +321,19 @@ public class VertexData
 {
     public Vector3 pos;
     public Color color;
+    public Vector2 uv;
 
     public VertexData(Vector3 pos, Color color)
     {
         this.pos = pos;
         this.color = color;
+        this.uv = new Vector2();
+    }
+    
+    public VertexData(Vector3 pos, Color color, Vector2 uv)
+    {
+        this.pos = pos;
+        this.color = color;
+        this.uv = uv;
     }
 }

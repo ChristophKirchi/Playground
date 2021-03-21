@@ -23,40 +23,50 @@ public static class GizmosExtensions
         Gizmos.DrawRay(pos + direction, left * arrowHeadLength);
     }
 
-    public static void DrawHalfEdgeGizmos(HalfEdgeMesh heMesh)
+    public static void DrawHalfEdgeGizmos(HalfEdgeMesh heMesh, bool halfEdges, bool vertices, bool faces)
     {
         if (heMesh != null)
         {
-            foreach (var he in heMesh.halfEdges)
+            if (halfEdges)
             {
-                var originPos = he.origin.data.pos;
-                var toPos = he.next.origin.data.pos;
-                
-                DrawArrow(originPos, toPos - originPos, .05f, 10f);
-            }
-
-            foreach (var vertex in heMesh.vertices)
-            {
-                Gizmos.color = vertex.data.color;
-                Gizmos.DrawSphere(vertex.data.pos, .02f);
-                Gizmos.color = Color.white;
-            }
-
-            foreach (var face in heMesh.faces)
-            {
-                Vector3 sum = new Vector3();
-                Color colorSum = new Color();
-                foreach (var he in face.GetAdjacentHalfEdges())
+                foreach (var he in heMesh.halfEdges)
                 {
-                    sum += he.origin.data.pos;
-                    colorSum += he.origin.data.color;
+                    var originPos = he.origin.data.pos;
+                    var toPos = he.next.origin.data.pos;
+                    
+                    DrawArrow(originPos, toPos - originPos, .05f, 10f);
                 }
-                sum /= 3;
-                colorSum /= 3;
-                Gizmos.color = colorSum;
-                Gizmos.DrawSphere(sum, .02f);
-                Gizmos.color = Color.white;
             }
+
+            if (vertices)
+            {
+                foreach (var vertex in heMesh.vertices)
+                {
+                    Gizmos.color = vertex.data.color;
+                    Gizmos.DrawSphere(vertex.data.pos, .02f);
+                    Gizmos.color = Color.white;
+                }
+            }
+
+            if (faces)
+            {
+                foreach (var face in heMesh.faces)
+                {
+                    Vector3 sum = new Vector3();
+                    Color colorSum = new Color();
+                    foreach (var he in face.GetAdjacentHalfEdges())
+                    {
+                        sum += he.origin.data.pos;
+                        colorSum += he.origin.data.color;
+                    }
+                    sum /= 3;
+                    colorSum /= 3;
+                    Gizmos.color = colorSum;
+                    Gizmos.DrawSphere(sum, .02f);
+                    Gizmos.color = Color.white;
+                }
+            }
+
         }
     }
 }
